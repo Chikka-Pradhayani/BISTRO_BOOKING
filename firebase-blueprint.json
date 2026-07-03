@@ -1,0 +1,155 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role details",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "User identifier"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User's display name"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "customer",
+            "admin"
+          ],
+          "description": "System role"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Profile creation timestamp"
+        }
+      },
+      "required": [
+        "uid",
+        "email",
+        "role"
+      ]
+    },
+    "Table": {
+      "title": "Table",
+      "description": "A restaurant table with physical seating capacity",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique table identifier"
+        },
+        "number": {
+          "type": "number",
+          "description": "Table sequence number"
+        },
+        "capacity": {
+          "type": "number",
+          "description": "Maximum guests table can host"
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Whether the table is currently available for booking"
+        }
+      },
+      "required": [
+        "id",
+        "number",
+        "capacity",
+        "isActive"
+      ]
+    },
+    "Reservation": {
+      "title": "Reservation",
+      "description": "A booking record for a table at a specific date and slot",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Reservation ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "ID of user who booked"
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Email of user who booked"
+        },
+        "userName": {
+          "type": "string",
+          "description": "Display name of user who booked"
+        },
+        "tableId": {
+          "type": "string",
+          "description": "Table assigned to reservation"
+        },
+        "tableNumber": {
+          "type": "number",
+          "description": "Assigned table number"
+        },
+        "date": {
+          "type": "string",
+          "description": "Reservation date in YYYY-MM-DD"
+        },
+        "timeSlot": {
+          "type": "string",
+          "description": "Time slot string"
+        },
+        "guests": {
+          "type": "number",
+          "description": "Number of guests"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "confirmed",
+            "cancelled"
+          ],
+          "description": "Reservation status"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when reservation was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when reservation was updated"
+        }
+      },
+      "required": [
+        "userId",
+        "tableId",
+        "tableNumber",
+        "date",
+        "timeSlot",
+        "guests",
+        "status"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles indexed by Auth UID"
+    },
+    "/tables/{tableId}": {
+      "schema": "Table",
+      "description": "Restaurant tables collection"
+    },
+    "/reservations/{reservationId}": {
+      "schema": "Reservation",
+      "description": "Table booking reservation records"
+    }
+  }
+}

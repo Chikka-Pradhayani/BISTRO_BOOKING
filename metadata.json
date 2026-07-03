@@ -1,0 +1,8 @@
+{
+  "name": "Restaurant Reservation System",
+  "description": "A comprehensive system for managing restaurant table reservations, table seating capacities, and avoiding slot overlaps, complete with customer and administrative views.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

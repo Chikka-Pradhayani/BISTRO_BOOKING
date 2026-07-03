@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'pvlp7808@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == 'admin')
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- VALIDATION HELPERS ---
+
+    function isValidUser(data) {
+      return data.uid is string && data.uid.size() <= 128
+        && data.email is string && data.email.size() <= 128
+        && (data.displayName == null || (data.displayName is string && data.displayName.size() <= 128))
+        && data.role is string && (data.role == 'customer' || data.role == 'admin')
+        && data.createdAt is timestamp;
+    }
+
+    function isValidTable(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.number is int && data.number > 0
+        && data.capacity is int && data.capacity > 0
+        && data.isActive is bool;
+    }
+
+    function isValidReservation(data) {
+      return data.userId is string && data.userId.size() <= 128
+        && (data.userEmail == null || (data.userEmail is string && data.userEmail.size() <= 128))
+        && (data.userName == null || (data.userName is string && data.userName.size() <= 128))
+        && data.tableId is string && data.tableId.size() <= 128
+        && data.tableNumber is int && data.tableNumber > 0
+        && data.date is string && data.date.size() >= 10 && data.date.size() <= 20
+        && data.timeSlot is string && data.timeSlot.size() <= 50
+        && data.guests is int && data.guests > 0
+        && data.status is string && (data.status == 'pending' || data.status == 'confirmed' || data.status == 'cancelled')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // --- USERS COLLECTION rules ---
+    match /users/{userId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      
+      allow create: if isSignedIn() 
+        && isOwner(userId)
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().createdAt == request.time
+        // Regular users cannot register themselves as admin
+        && (incoming().role == 'customer' || request.auth.token.email == 'pvlp7808@gmail.com');
+
+      allow update: if isSignedIn()
+        && (
+          (isOwner(userId) && isValidUser(incoming()) && incoming().role == existing().role && incoming().createdAt == existing().createdAt)
+          || isAdmin()
+        );
+      
+      allow delete: if isAdmin();
+    }
+
+    // --- TABLES COLLECTION rules ---
+    match /tables/{tableId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidId(tableId) && isValidTable(incoming());
+      allow update: if isAdmin() && isValidTable(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // --- RESERVATIONS COLLECTION rules ---
+    match /reservations/{reservationId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn()
+        && isValidId(reservationId)
+        && isValidReservation(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        // Ensure table exists and has enough capacity
+        && exists(/databases/$(database)/documents/tables/$(incoming().tableId))
+        && get(/databases/$(database)/documents/tables/$(incoming().tableId)).data.capacity >= incoming().guests;
+
+      allow update: if isSignedIn() && (
+        // Admin overrides
+        (isAdmin() && isValidReservation(incoming()) && incoming().updatedAt == request.time)
+        ||
+        // Customer canceling their own reservation
+        (
+          resource.data.userId == request.auth.uid
+          && isValidReservation(incoming())
+          && incoming().userId == existing().userId
+          && incoming().tableId == existing().tableId
+          && incoming().date == existing().date
+          && incoming().timeSlot == existing().timeSlot
+          && incoming().guests == existing().guests
+          && incoming().status == 'cancelled'
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+  }
+}
