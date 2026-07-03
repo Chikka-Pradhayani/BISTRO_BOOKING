@@ -6,6 +6,11 @@ To facilitate seamless evaluation, the application features a built-in **Offline
 
 ---
 
+## Live Demo
+https://bistrobooking-main.vercel.app/
+
+---
+
 ## 🚀 Setup Instructions
 
 Follow these simple steps to run the application locally on your computer:
